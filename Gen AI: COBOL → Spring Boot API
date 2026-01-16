@@ -1,0 +1,77 @@
+'02_modern_java/AccountService.java'
+
+package com.genai.cobol2java;
+
+import org.springframework.web.bind.annotation.*;
+import java.math.BigDecimal;
+import java.util.*;
+import org.springframework.http.*;
+
+@RestController
+@RequestMapping("/api/accounts")
+public class AccountService {
+    
+    private Map<String, Account> accounts = new HashMap<>();
+    
+    @PostMapping("/balance/update")
+    public ResponseEntity<Account> updateBalance(@RequestBody BalanceUpdateRequest request) {
+        
+        // === COBOL READ → Java find ===
+        Account account = accounts.get(request.getAccountNumber());
+        if (account == null) {
+            account = new Account(request.getAccountNumber(), 
+                                BigDecimal.ZERO, "NEW");
+        }
+        
+        // === COBOL COMPUTE → Java math ===
+        BigDecimal newBalance = account.getBalance().add(request.getAmount());
+        account.setBalance(newBalance);
+        
+        // === COBOL IF overdraft → Java ===
+        String status = newBalance.compareTo(BigDecimal.ZERO) < 0 ? 
+                       "OVERDRAWN" : "ACTIVE";
+        account.setStatus(status);
+        
+        // === COBOL REWRITE → Java save ===
+        accounts.put(account.getAccountNumber(), account);
+        
+        return ResponseEntity.ok(account);
+    }
+    
+    @GetMapping("/{accountNumber}")
+    public ResponseEntity<Account> getAccount(@PathVariable String accountNumber) {
+        Account account = accounts.get(accountNumber);
+        return account != null ? ResponseEntity.ok(account) : ResponseEntity.notFound().build();
+    }
+}
+
+// === COBOL 01 ACCT-RECORD → Java POJOs ===
+class Account {
+    private String accountNumber;
+    private BigDecimal balance;
+    private String status;
+    
+    public Account(String accountNumber, BigDecimal balance, String status) {
+        this.accountNumber = accountNumber;
+        this.balance = balance;
+        this.status = status;
+    }
+    
+    // Getters/Setters (COBOL WORKING-STORAGE equivalent)
+    public String getAccountNumber() { return accountNumber; }
+    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
+    public BigDecimal getBalance() { return balance; }
+    public void setBalance(BigDecimal balance) { this.balance = balance; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+}
+
+class BalanceUpdateRequest {
+    private String accountNumber;
+    private BigDecimal amount;
+    
+    public String getAccountNumber() { return accountNumber; }
+    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
+}
